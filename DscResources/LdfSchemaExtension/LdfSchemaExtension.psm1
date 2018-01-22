@@ -17,7 +17,7 @@ Function Get-TargetResource
         $SchemaAdmin,
 
         [parameter(Mandatory = $true)]
-        [securestring]
+        [string]
         $AdminPassword,
 
         [parameter(Mandatory = $true)]
@@ -72,7 +72,7 @@ Function Test-TargetResource
         $SchemaAdmin,
 
         [parameter(Mandatory = $true)]
-        [securestring]
+        [string]
         $AdminPassword,
 
         [parameter(Mandatory = $true)]
@@ -103,7 +103,7 @@ Function Set-TargetResource
         $SchemaAdmin,
 
         [parameter(Mandatory = $true)]
-        [securestring]
+        [string]
         $AdminPassword,
 
         [parameter(Mandatory = $true)]
@@ -125,7 +125,7 @@ Function Set-TargetResource
         }
             $splitName = $DomainName -split '.'
 
-            ldifde -i -f $SchemaPath -s $ComputerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
+            ldifde -i -f $SchemaPath -s $ServerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
     }
     else 
     {
