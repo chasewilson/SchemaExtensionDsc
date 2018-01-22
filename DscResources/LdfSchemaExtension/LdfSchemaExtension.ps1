@@ -61,7 +61,7 @@ Function Set-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
-        $Name,
+        $ServerName,
 
         [parameter(Mandatory = $true)]
         [string]
