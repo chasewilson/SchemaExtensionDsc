@@ -1,3 +1,6 @@
+Import-Module -Name (Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
+                               -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
+                               -Force
 
 Function Get-TargetResource
 {
@@ -5,6 +8,22 @@ Function Get-TargetResource
     [OutputType([Hashtable])]
     param
     (
+        [parameter(Mandatory = $true)]
+        [string]
+        $ServerName,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $SchemaAdmin,
+
+        [parameter(Mandatory = $true)]
+        [securestring]
+        $AdminPassword,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $DomainName,
+
         [parameter(Mandatory = $true)]
         [string]
         $SchemaPath
@@ -44,6 +63,22 @@ Function Test-TargetResource
     [OutputType([System.Boolean])]
     param
     (
+        [parameter(Mandatory = $true)]
+        [string]
+        $ServerName,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $SchemaAdmin,
+
+        [parameter(Mandatory = $true)]
+        [securestring]
+        $AdminPassword,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $DomainName,
+
         [parameter(Mandatory = $true)]
         [string]
         $SchemaPath
