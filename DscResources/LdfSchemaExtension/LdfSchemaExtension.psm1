@@ -1,3 +1,6 @@
+Import-Module -Name (Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
+                               -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
+                               -Force
 
 Function Get-TargetResource
 {
@@ -5,6 +8,22 @@ Function Get-TargetResource
     [OutputType([Hashtable])]
     param
     (
+        [parameter(Mandatory = $true)]
+        [string]
+        $ServerName,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $SchemaAdmin,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $AdminPassword,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $DomainName,
+
         [parameter(Mandatory = $true)]
         [string]
         $SchemaPath
@@ -46,6 +65,22 @@ Function Test-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
+        $ServerName,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $SchemaAdmin,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $AdminPassword,
+
+        [parameter(Mandatory = $true)]
+        [string]
+        $DomainName,
+
+        [parameter(Mandatory = $true)]
+        [string]
         $SchemaPath
     )
 
@@ -61,14 +96,14 @@ Function Set-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
-        $Name,
+        $ServerName,
 
         [parameter(Mandatory = $true)]
         [string]
         $SchemaAdmin,
 
         [parameter(Mandatory = $true)]
-        [securestring]
+        [string]
         $AdminPassword,
 
         [parameter(Mandatory = $true)]
@@ -90,7 +125,7 @@ Function Set-TargetResource
         }
             $splitName = $DomainName -split '.'
 
-            ldifde -i -f $SchemaPath -s $ComputerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
+            ldifde -i -f $SchemaPath -s $ServerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
     }
     else 
     {
