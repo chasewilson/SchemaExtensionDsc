@@ -1,0 +1,9 @@
+[ClassVersion("0.9.0.0"), FriendlyName("LdfExtension")]
+class LdfSchemaExtension : OMI_BaseResource
+{
+    [Key, Description("Indicates the path of the schema extension file.")] string SchemaPath;
+    [Required, Description("Schema Admin username used to extend the schema.")] string SchemaAdmin;
+    [Required, Description("The name of the Domain Cntroller where changes will be made.")] string ServerName;
+    [Required, Description("Password of the Schema Admin used to extend the schema.")] string AdminPassword;
+    [Required, Description("Domain Name of the schema to be extended.")] string DomainName;
+};
