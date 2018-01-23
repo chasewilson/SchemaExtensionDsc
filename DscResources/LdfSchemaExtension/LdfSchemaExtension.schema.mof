@@ -2,7 +2,6 @@
 class LdfSchemaExtension : OMI_BaseResource
 {
     [Key, Description("Indicates the path of the schema extension file.")] string SchemaPath;
-    [Required, Description("The name of the Domain Cntroller where changes will be made.")] string ServerName;
-    [Required, Description("Domain Name of the schema to be extended.")] string DistinguishedName;
-    [Read, Description("The existing schema extension objects if there are any.")] string SchemaObjects
+    [Required, Description("Domain Distinguished Name of the schema to be extended.")] string DistinguishedName;
+    [Read, Description("The existing schema extension objects.")] string SchemaObjects;
 };
