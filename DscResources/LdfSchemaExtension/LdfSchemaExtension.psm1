@@ -8,7 +8,8 @@ data LocalizedData
     # culture="en-US"
     ConvertFrom-StringData -StringData @'
         ErrorPathNotFound = The requested path "{0}" cannot be found.
-        ExtensionObjectNotFound = Error obtaining "{0}" Schema Extension Object
+        ExtensionAttributeIdNotFound = Error obtaining Schema Extension Object with attribute id "{0}"
+        ExtensionGovernsIdNotFound = Error obtaining Schema Extension Object with governs id "{0}"
         ExtensionObjectFound = Obtained "{0}" Schema Extension Object
         DistinguishedName = Configuration Distinguished Name "{0}" does not match current Domain Distinguished Name "{1}"
         MayContainfound = Obtained "{0}" in "{1}"
@@ -44,12 +45,7 @@ Function Get-TargetResource
         # .ldf file is passed to PS as an aray of strings
         foreach ($line in $schemaTemplate)
         {
-            if ($line -match "^adminDisplayName")
-            {
-                $adminDisplayName = $line -split ":"
-                $adminDisplayName = $adminDisplayName[1].Trim()
-            }
-            elseif ($line -match "^attributeID")
+            if ($line -match "^attributeID")
             {
                 $attributeId = $line -split ":"
                 $attributeId = $attributeId[1].Trim()
@@ -57,14 +53,14 @@ Function Get-TargetResource
 
                 if ($null -ne $attributeObject)
                 {
-                    $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                    $Message = $LocalizedData.ExtensionObjectFound -f $attributObject.adminDisplayName
                     Write-Verbose -Message $Message
 
                     $ObjectReturn += $attributeObject
                 }
                 else 
                 {
-                    $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                    $Message = $LocalizedData.ExtensionAttributeIdNotFound -f $attributeId
                     Write-Verbose -Message $Message
                 }
             }
@@ -74,16 +70,16 @@ Function Get-TargetResource
                 $governsId = $governsId[1].Trim()
                 $governsObject = $schemaObjects | where {$_.governsID -eq $governsId}
 
-                if($null -ne $governsId)
+                if($null -ne $governsObject)
                 {
-                    $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                    $Message = $LocalizedData.ExtensionObjectFound -f $governsObject.adminDisplayName
                     Write-Verbose -Message $Message
 
                     $ObjectReturn += $governsObject
                 }
                 else 
                 {
-                    $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                    $Message = $LocalizedData.ExtensionGovernsIdNotFound -f $governsId
                     Write-Verbose -Message $Message
                 }
             }
@@ -95,11 +91,12 @@ Function Get-TargetResource
         Write-Verbose -Message $Message
     }
 
-    $currentDomain = Get-DomainDistinguishedName
+    $currentDomain = (Get-ADDomain).DistinguishedName
 
     if($DistinguishedName -ne $currentDomain)
     {
         $message = $LocalizedData.DistinguishedName -f $DistinguishedName, $currentDomain
+        Write-Verbose -Message $Message
     }
 
     $ReturnValue = @{
@@ -133,27 +130,22 @@ Function Test-TargetResource
 
     foreach ($line in $schemaTemplate)
     {
-        if ($line -match "^adminDisplayName")
-        {
-            $adminDisplayName = $line -split ":"
-            $adminDisplayName = $adminDisplayName[1].Trim()
-        }
-        elseif ($line -match "^attributeID")
+        if ($line -match "^attributeID")
         {
             $attributeId = $line -split ":"
             $attributeId = $attributeId[1].Trim()
             $attributeObject = $schemaObjects | where {$_.attributeId -eq $attributeId}
-            if ($null -eq $attributeObject)
+            if ($null -ne $attributeObject)
             {
-                $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                $Message = $LocalizedData.ExtensionObjectFound -f $attributeObject.adminDisplayName
                 Write-Verbose -Message $Message
-
-                $inDesiredState = $false
             }
             else
             {
-                $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                $Message = $LocalizedData.ExtensionAttributeIdNotFound -f $attributeId
                 Write-Verbose -Message $Message
+
+                $inDesiredState = $false
             }
         }
         elseif ($line -match "^governsID")
@@ -164,12 +156,12 @@ Function Test-TargetResource
             
             if ($null -ne $governsObject)
             {
-                $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                $Message = $LocalizedData.ExtensionObjectFound -f $governsObject.adminDisplayName
                 Write-Verbose -Message $Message
             }
             else
             {
-                $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                $Message = $LocalizedData.ExtensionGovernsIdNotFound -f $governsId
                 Write-Verbose -Message $Message
                 
                 $inDesiredState = $false
