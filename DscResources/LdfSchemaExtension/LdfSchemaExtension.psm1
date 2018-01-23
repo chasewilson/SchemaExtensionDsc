@@ -10,23 +10,15 @@ Function Get-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
+        $SchemaPath,
+
+        [parameter(Mandatory = $true)]
+        [string]
         $ServerName,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
     $schemaTemplate = Get-Content -Path $SchemaPath
@@ -40,7 +32,7 @@ Function Get-TargetResource
         {
             $attributeID = $line -split ":"
             $attributeID = $attributeID[1].Trim()
-            $attributeObject = $using:schemaObjects | where {$_.attributeid -eq $attributeID}
+            $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
 
             $getReturn += $attributeObject
         }
@@ -48,10 +40,17 @@ Function Get-TargetResource
         {
             $governsId = $line -split ":"
             $governsId = $governsId[1].Trim()
-            $governsObject = $using:schemaObjects | where {$_.governsID -eq $governsID}
+            $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
             
             $getReturn += $governsObject
         }
+    }
+
+    $ReturnValue = @{
+        SchemaPath = $Force
+        ServerName = $inputPath
+        DistinguishedName = $CimAccessControlList
+        SchemaObjects = $schemaObjects
     }
 
     return $getReturn
@@ -65,27 +64,72 @@ Function Test-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
+        $SchemaPath,
+
+        [parameter(Mandatory = $true)]
+        [string]
         $ServerName,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
-    $inDesiredState = Test-SchemaExtension -SchemaPath $SchemaPath
+    $inDesiredState = $true
+    $schemaTemplate = Get-Content -Path $SchemaPath
+    $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
+    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
 
+    foreach ($line in $schemaTemplate)
+    {
+        if ($line -match "^attributeID")
+        {
+            $attributeID = $line -split ":"
+            $attributeID = $attributeID[1].Trim()
+            $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
+            if ($null -eq $attributeObject)
+            {
+                Write-Verbose "$($attributeObject.adminDisplayname) does not exist in the AD Schema"
+                $inDesiredState = $false
+            }
+            else
+            {
+                Write-Verbose "$($attributeObject.adminDisplayname) exists in the AD Schema"
+            }
+        }
+        if ($line -match "^governsID")
+        {
+            $governsId = $line -split ":"
+            $governsId = $governsId[1].Trim()
+            $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
+            
+            if ($null -eq $governsObject)
+            {
+                Write-Verbose "$($governsObject.adminDisplayname) does not exist in the AD Schema"
+                
+                $inDesiredState = $false
+            }
+            else
+            {
+                Write-Verbose "$($governsObject.adminDisplayname) exists in the AD Schema"
+            }
+        }
+        if ($line -match "^mayContain")
+        {
+            $mayId = $line -split ":"
+            $mayId = $mayId[1].Trim()
+            
+            if ($governsObject.mayContain -match $mayId)
+            {                            
+                Write-Verbose "$mayId exists in $($governsObject.ldapDisplayName)"
+            }
+            else
+            {
+                Write-Verbose "$mayId does not exist in $($governsObject.ldapDisplayName)"
+                $inDesiredState = $false
+            }
+        }
+    }
     return $inDesiredState
 }
 
@@ -96,23 +140,15 @@ Function Set-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
+        $SchemaPath,
+
+        [parameter(Mandatory = $true)]
+        [string]
         $ServerName,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
     if (Test-path $SchemaPath)
@@ -123,9 +159,8 @@ Function Set-TargetResource
         {
             ConvertTo-ASCII -FilePath $SchemaPath
         }
-            $splitName = $DomainName -split '.'
 
-            ldifde -i -f $SchemaPath -s $ServerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
+        ldifde -i -f $SchemaPath -s $ServerName -c "{_UNIT_DN_}" "$($DistinguishedName)" -v -k 
     }
     else 
     {
