@@ -39,7 +39,7 @@ Function Get-TargetResource
     {
         $schemaTemplate = Get-Content -Path $SchemaPath
         $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-        $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
+        $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties 'adminDisplayName', 'attributeID', 'governsId', 'mayContain'
         $ObjectReturn = @{}
 
         # .ldf file is passed to PS as an aray of strings
@@ -126,7 +126,7 @@ Function Test-TargetResource
     $inDesiredState = $true
     $schemaTemplate = Get-Content -Path $SchemaPath
     $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
+    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties 'adminDisplayName', 'attributeID', 'governsId', 'mayContain'
 
     foreach ($line in $schemaTemplate)
     {
