@@ -41,6 +41,7 @@ Function Get-TargetResource
         $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
         $ObjectReturn = @{}
 
+        # .ldf file is passed to PS as an aray of strings
         foreach ($line in $schemaTemplate)
         {
             if ($line -match "^adminDisplayName")
@@ -50,9 +51,9 @@ Function Get-TargetResource
             }
             elseif ($line -match "^attributeID")
             {
-                $attributeID = $line -split ":"
-                $attributeID = $attributeID[1].Trim()
-                $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
+                $attributeId = $line -split ":"
+                $attributeId = $attributeId[1].Trim()
+                $attributeObject = $schemaObjects | where {$_.attributeId -eq $attributeId}
 
                 if ($null -ne $attributeObject)
                 {
@@ -71,7 +72,7 @@ Function Get-TargetResource
             {
                 $governsId = $line -split ":"
                 $governsId = $governsId[1].Trim()
-                $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
+                $governsObject = $schemaObjects | where {$_.governsID -eq $governsId}
 
                 if($null -ne $governsId)
                 {
@@ -139,9 +140,9 @@ Function Test-TargetResource
         }
         elseif ($line -match "^attributeID")
         {
-            $attributeID = $line -split ":"
-            $attributeID = $attributeID[1].Trim()
-            $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
+            $attributeId = $line -split ":"
+            $attributeId = $attributeId[1].Trim()
+            $attributeObject = $schemaObjects | where {$_.attributeId -eq $attributeId}
             if ($null -eq $attributeObject)
             {
                 $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
