@@ -2,6 +2,23 @@ Import-Module -Name (Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
                                -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
                                -Force
 
+# Localized messages
+data LocalizedData
+{
+    # culture="en-US"
+    ConvertFrom-StringData -StringData @'
+        ErrorPathNotFound = The requested path "{0}" cannot be found.
+        ExtensionObjectNotFound = Error obtaining "{0}" Schema Extension Object
+        ExtensionObjectFound = Obtained "{0}" Schema Extension Object
+        DistinguishedName = Configuration Distinguished Name "{0}" does not match current Domain Distinguished Name "{1}"
+        MayContainfound = Obtained "{0}" in "{1}"
+        MayContainNotFound = "{0}" was not found in specified Schema Object
+        AsciiConversion = Converting Schema .ldf to ASCII format
+        FileEncoding = Getting the Schema .ldf encoding
+        ldifde = Setting schema extension.
+'@
+}
+
 Function Get-TargetResource
 {
     [CmdletBinding()]
@@ -10,51 +27,87 @@ Function Get-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
-        $ServerName,
+        $SchemaPath,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
-    $schemaTemplate = Get-Content -Path $SchemaPath
-    $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
-    $getReturn = @{}
-
-    foreach ($line in $schemaTemplate)
+    if (Test-Path $SchemaPath)
     {
-        if ($line -match "^attributeID")
-        {
-            $attributeID = $line -split ":"
-            $attributeID = $attributeID[1].Trim()
-            $attributeObject = $using:schemaObjects | where {$_.attributeid -eq $attributeID}
+        $schemaTemplate = Get-Content -Path $SchemaPath
+        $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
+        $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
+        $ObjectReturn = @{}
 
-            $getReturn += $attributeObject
-        }
-        if ($line -match "^governsID")
+        foreach ($line in $schemaTemplate)
         {
-            $governsId = $line -split ":"
-            $governsId = $governsId[1].Trim()
-            $governsObject = $using:schemaObjects | where {$_.governsID -eq $governsID}
-            
-            $getReturn += $governsObject
+            if ($line -match "^adminDisplayName")
+            {
+                $adminDisplayName = $line -split ":"
+                $adminDisplayName = $adminDisplayName[1].Trim()
+            }
+            elseif ($line -match "^attributeID")
+            {
+                $attributeID = $line -split ":"
+                $attributeID = $attributeID[1].Trim()
+                $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
+
+                if ($null -ne $attributeObject)
+                {
+                    $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                    Write-Verbose -Message $Message
+
+                    $ObjectReturn += $attributeObject
+                }
+                else 
+                {
+                    $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                    Write-Verbose -Message $Message
+                }
+            }
+            elseif ($line -match "^governsID")
+            {
+                $governsId = $line -split ":"
+                $governsId = $governsId[1].Trim()
+                $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
+
+                if($null -ne $governsId)
+                {
+                    $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                    Write-Verbose -Message $Message
+
+                    $ObjectReturn += $governsObject
+                }
+                else 
+                {
+                    $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                    Write-Verbose -Message $Message
+                }
+            }
         }
     }
+    else
+    {
+        $Message = $LocalizedData.ErrorPathNotFound -f $SchemaPath
+        Write-Verbose -Message $Message
+    }
 
-    return $getReturn
+    $currentDomain = Get-DomainDistinguishedName
+
+    if($DistinguishedName -ne $currentDomain)
+    {
+        $message = $LocalizedData.DistinguishedName -f $DistinguishedName, $currentDomain
+    }
+
+    $ReturnValue = @{
+        SchemaPath = $SchemaPath
+        DistinguishedName = $DistinguishedName
+        SchemaObjects = $ObjectReturn
+    }
+
+    return $ReturnValue
 }
 
 Function Test-TargetResource
@@ -65,27 +118,83 @@ Function Test-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
-        $ServerName,
+        $SchemaPath,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
-    $inDesiredState = Test-SchemaExtension -SchemaPath $SchemaPath
+    $inDesiredState = $true
+    $schemaTemplate = Get-Content -Path $SchemaPath
+    $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
+    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
 
+    foreach ($line in $schemaTemplate)
+    {
+        if ($line -match "^adminDisplayName")
+        {
+            $adminDisplayName = $line -split ":"
+            $adminDisplayName = $adminDisplayName[1].Trim()
+        }
+        elseif ($line -match "^attributeID")
+        {
+            $attributeID = $line -split ":"
+            $attributeID = $attributeID[1].Trim()
+            $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
+            if ($null -eq $attributeObject)
+            {
+                $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                Write-Verbose -Message $Message
+
+                $inDesiredState = $false
+            }
+            else
+            {
+                $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                Write-Verbose -Message $Message
+            }
+        }
+        elseif ($line -match "^governsID")
+        {
+            $governsId = $line -split ":"
+            $governsId = $governsId[1].Trim()
+            $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
+            
+            if ($null -ne $governsObject)
+            {
+                $Message = $LocalizedData.ExtensionObjectFound -f $adminDisplayName
+                Write-Verbose -Message $Message
+            }
+            else
+            {
+                $Message = $LocalizedData.ExtensionObjectNotFound -f $adminDisplayName
+                Write-Verbose -Message $Message
+                
+                $inDesiredState = $false
+            }
+        }
+        elseif ($line -match "^mayContain")
+        {
+            $mayId = $line -split ":"
+            $mayId = $mayId[1].Trim()
+            
+            if ($governsObject.mayContain -match $mayId)
+            {
+                $governsName = $governsObject.ldapDisplayName
+
+                $Message = $LocalizedData.MayContainFound -f $mayId, $governsName
+                Write-Verbose -Message $Message                         
+            }
+            else
+            {
+                $Message = $LocalizedData.MayContainNotFound -f $mayId
+                Write-Verbose -Message $Message
+
+                $inDesiredState = $false
+            }
+        }
+    }
     return $inDesiredState
 }
 
@@ -96,39 +205,36 @@ Function Set-TargetResource
     (
         [parameter(Mandatory = $true)]
         [string]
-        $ServerName,
+        $SchemaPath,
 
         [parameter(Mandatory = $true)]
         [string]
-        $SchemaAdmin,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $AdminPassword,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $DomainName,
-
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
+        $DistinguishedName
     )
 
     if (Test-path $SchemaPath)
     {
+        $Message = $LocalizedData.FileEncoding
+        Write-Verbose -Message $Message
+
         $encoding = Get-FileEncoding -FilePath $SchemaPath
 
         if ($encoding -ne 'ASCII')
         {
+            $Message = $LocalizedData.AsciiConversion
+            Write-Verbose -Message $Message
+
             ConvertTo-ASCII -FilePath $SchemaPath
         }
-            $splitName = $DomainName -split '.'
 
-            ldifde -i -f $SchemaPath -s $ServerName -c "{_UNIT_DN_}" "dc=$splitName[0],dc=$splitName[1]" -v -k -b $SchemaAdmin $DomainName $AdminPassword
+        $Message = $LocalizedData.ldifde
+        Write-Verbose -Message $Message
+
+        ldifde -i -f $SchemaPath -s $env:COMPUTERNAME -c "{_UNIT_DN_}" "$($DistinguishedName)" -v -k 
     }
     else 
     {
-        Write-Verbose -Message "Schema extension not found. Please Verify Path and .ldf existence"
+        $Message = $LocalizedData.ErrorPathNotFound -f $SchemaPath
+        Write-Verbose -Message $Message
     }
 }

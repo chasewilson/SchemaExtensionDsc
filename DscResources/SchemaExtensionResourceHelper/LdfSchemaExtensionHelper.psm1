@@ -100,71 +100,14 @@ function ConvertTo-ASCII
     [System.IO.File]::WriteAllText($FilePath, $fileContent, [System.Text.Encoding]::ASCII)
 } 
 
-Function Test-SchemaExtension
+<#
+.SYNOPSIS
+    This returns the current Domain Distinguished Name. 
+#>
+function Get-DomainDistinguishedName 
 {
-    [CmdletBinding()]
-    [OutputType([System.Boolean])]
-    param
-    (
-        [parameter(Mandatory = $true)]
-        [string]
-        $SchemaPath
-    )
+    $root = [ADSI]"LDAP://RootDSE"
+    $currentDomain = $Root.Get("rootDomainNamingContext")
 
-    $returnValue = $true
-    $schemaTemplate = Get-Content -Path $SchemaPath
-    $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties
-
-    foreach ($line in $schemaTemplate)
-    {
-        if ($line -match "^attributeID")
-        {
-            $attributeID = $line -split ":"
-            $attributeID = $attributeID[1].Trim()
-            $attributeObject = $schemaObjects | where {$_.attributeid -eq $attributeID}
-            if ($null -eq $attributeObject)
-            {
-                Write-Verbose "$($attributeObject.adminDisplayname) does not exist in the AD Schema"
-                $returnValue = $false
-            }
-            else
-            {
-                Write-Verbose "$($attributeObject.adminDisplayname) exists in the AD Schema"
-            }
-        }
-        if ($line -match "^governsID")
-        {
-            $governsId = $line -split ":"
-            $governsId = $governsId[1].Trim()
-            $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
-            
-            if ($null -eq $governsObject)
-            {
-                Write-Verbose "$($governsObject.adminDisplayname) does not exist in the AD Schema"
-                
-                $returnValue = $false
-            }
-            else
-            {
-                Write-Verbose "$($governsObject.adminDisplayname) exists in the AD Schema"
-            }
-        }
-        if ($line -match "^mayContain")
-        {
-            $mayId = $line -split ":"
-            $mayId = $mayId[1].Trim()
-            
-            if ($governsObject.mayContain -match $mayId)
-            {                            
-                Write-Verbose "$mayId exists in $($governsObject.ldapDisplayName)"
-            }
-            else
-            {
-                Write-Verbose "$mayId does not exist in $($governsObject.ldapDisplayName)"
-                $returnValue = $false
-            }
-        }
-    }
-    return $returnValue
+    return $currentDomain
 }
