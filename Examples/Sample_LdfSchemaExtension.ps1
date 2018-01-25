@@ -17,16 +17,10 @@ param
     $DistinguishedName,
 
     [parameter(Mandatory = $true)]
-    [string]
-    $SchemaAdmin,
-
-    [parameter(Mandatory = $true)]
-    [string]
-    $SchemaPassword
+    [pscredential]
+    $SchemaCredential
 )
 
-$securePassword = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
-$schemaCredential = New-Object System.Management.Automation.PSCredential ($AdminUsername, $securePassword)
 
 Configuration Sample_LdfSchemaExtension
 {
@@ -38,7 +32,7 @@ Configuration Sample_LdfSchemaExtension
         {
             SchemaPath = $SchemaPath
             DistinguishedName = $DistinguishedName
-            PsDscRunAsCredential = $schemaCredential
+            PsDscRunAsCredential = $SchemaCredential
         }
     }
 }

@@ -1,7 +1,18 @@
+[ClassVersion("1.0.0.0")]
+class SchemaObject
+{
+    [Write, Description("AdminDisplayName of the object.")] String AdminDisplayName;
+    [Write, Description("AttributeId of the object.")] String AttributeId;
+    [Write, Description("Distinguishedname of the object.")] String DistinguishedName;
+    [Write, Description("Name of the object.")] String Name;
+    [Write, Description("ObjectGuid of the object.")] String ObjectGuid;
+    [Write, Description("ObjectClass of the object.")] String ObjectClass;
+};
+
 [ClassVersion("0.9.0.0"), FriendlyName("LdfExtension")]
 class LdfSchemaExtension : OMI_BaseResource
 {
     [Key, Description("Indicates the path of the schema extension file.")] string SchemaPath;
     [Required, Description("Domain Distinguished Name of the schema to be extended.")] string DistinguishedName;
-    [Read, Description("The existing schema extension objects.")] string SchemaObjects;
+    [Read, Description("The existing schema extension objects."), EmbeddedInstance("SchemaObject")] string SchemaObject[];
 };

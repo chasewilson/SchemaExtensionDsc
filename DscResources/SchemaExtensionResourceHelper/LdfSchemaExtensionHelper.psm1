@@ -99,15 +99,3 @@ function ConvertTo-ASCII
 
     [System.IO.File]::WriteAllText($FilePath, $fileContent, [System.Text.Encoding]::ASCII)
 } 
-
-<#
-.SYNOPSIS
-    This returns the current Domain Distinguished Name. 
-#>
-function Get-DomainDistinguishedName 
-{
-    $root = [ADSI]"LDAP://RootDSE"
-    $currentDomain = $Root.Get("rootDomainNamingContext")
-
-    return $currentDomain
-}
