@@ -2,23 +2,8 @@ Import-Module -Name (Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
                                -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
                                -Force
 
-# Localized messages
-data LocalizedData
-{
-    # culture="en-US"
-    ConvertFrom-StringData -StringData @'
-        ErrorPathNotFound = The requested path "{0}" cannot be found.
-        ExtensionAttributeIdNotFound = Error obtaining Schema Extension Object with attribute id "{0}"
-        ExtensionGovernsIdNotFound = Error obtaining Schema Extension Object with governs id "{0}"
-        ExtensionObjectFound = Obtained "{0}" Schema Extension Object
-        DistinguishedName = Configuration Distinguished Name "{0}" does not match current Domain Distinguished Name "{1}"
-        MayContainfound = Obtained "{0}" in "{1}"
-        MayContainNotFound = "{0}" was not found in specified Schema Object
-        AsciiConversion = Converting Schema .ldf to ASCII format
-        FileEncoding = Getting the Schema .ldf encoding
-        ldifde = Setting schema extension.
-'@
-}
+# Localized messages for Write-Verbose statements in this resource
+$script:localizedData = Get-LocalizedData -ResourceName 'LdfSchemaExtension'
 
 Function Get-TargetResource
 {
@@ -39,8 +24,11 @@ Function Get-TargetResource
     {
         $schemaTemplate = Get-Content -Path $SchemaPath
         $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-        $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
-        $ObjectReturn = @{}
+        $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties 'adminDisplayName', 'attributeID', 'governsId', 'mayContain'
+
+        $namespace = "root/Microsoft/Windows/DesiredStateConfiguration"
+        $cimSchemaObjects = New-Object -TypeName 'System.Collections.ObjectModel.Collection`1[Microsoft.Management.Infrastructure.CimInstance]'
+
 
         # .ldf file is passed to PS as an aray of strings
         foreach ($line in $schemaTemplate)
@@ -49,63 +37,70 @@ Function Get-TargetResource
             {
                 $attributeId = $line -split ":"
                 $attributeId = $attributeId[1].Trim()
-                $attributeObject = $schemaObjects | where {$_.attributeId -eq $attributeId}
+                $currentSchemaObject = $schemaObjects | Where-Object {$_.attributeId -eq $attributeId}
 
-                if ($null -ne $attributeObject)
+                if ($null -ne $currentSchemaObject)
                 {
-                    $Message = $LocalizedData.ExtensionObjectFound -f $attributObject.adminDisplayName
-                    Write-Verbose -Message $Message
+                    Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $currentSchemaObject.adminDisplayName)
 
-                    $ObjectReturn += $attributeObject
+                    $currentId = $currentSchemaObject.attributeId
                 }
                 else 
                 {
-                    $Message = $LocalizedData.ExtensionAttributeIdNotFound -f $attributeId
-                    Write-Verbose -Message $Message
+                    Write-Verbose -Message ($localizedData.ExtensionAttributeIdNotFound -f $attributeId)
                 }
             }
             elseif ($line -match "^governsID")
             {
                 $governsId = $line -split ":"
                 $governsId = $governsId[1].Trim()
-                $governsObject = $schemaObjects | where {$_.governsID -eq $governsId}
+                $currentSchemaObject = $schemaObjects | Where-Object {$_.governsID -eq $governsId}
 
-                if($null -ne $governsObject)
+                if($null -ne $currentSchemaObject)
                 {
-                    $Message = $LocalizedData.ExtensionObjectFound -f $governsObject.adminDisplayName
-                    Write-Verbose -Message $Message
+                    Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $currentSchemaObject.adminDisplayName)
 
-                    $ObjectReturn += $governsObject
+                    $currentId = $currentSchemaObject.governsId
                 }
                 else 
                 {
-                    $Message = $LocalizedData.ExtensionGovernsIdNotFound -f $governsId
-                    Write-Verbose -Message $Message
+                    Write-Verbose -Message ($localizedData.ExtensionGovernsIdNotFound -f $governsId)
+                }
+            }
+            if($null -ne $currentSchemaObject)
+            {
+                $cimSchemaObjects += New-CimInstance -ClientOnly -Namespace $namespace -ClassName SchemaObject -Property @{
+                    AdminDisplayName = $currentSchemaObject.adminDisplayname
+                    AttributeId = $currentId
+                    DistinguishedName = $currentSchemaObject.distinguishedName
+                    Name = $currentSchemaObject.name
+                    ObjectGuid = $currentSchemaObject.objectGuid.guid
+                    ObjectClass = $currentSchemaObject.objectClass
                 }
             }
         }
     }
     else
     {
-        $Message = $LocalizedData.ErrorPathNotFound -f $SchemaPath
-        Write-Verbose -Message $Message
+        Write-Verbose -Message ($localizedData.ErrorPathNotFound -f $SchemaPath)
     }
 
     $currentDomain = (Get-ADDomain).DistinguishedName
 
     if($DistinguishedName -ne $currentDomain)
     {
-        $message = $LocalizedData.DistinguishedName -f $DistinguishedName, $currentDomain
-        Write-Verbose -Message $Message
+        Write-Verbose -Message ($localizedData.DistinguishedName -f $DistinguishedName, $currentDomain)
     }
 
-    $ReturnValue = @{
+    $schemaObject = [Microsoft.Management.Infrastructure.CimInstance[]]@($cimSchemaObjects)
+
+    $returnValue = @{
         SchemaPath = $SchemaPath
         DistinguishedName = $DistinguishedName
-        SchemaObjects = $ObjectReturn
+        SchemaObject =  $schemaObject
     }
 
-    return $ReturnValue
+    return $returnValue
 }
 
 Function Test-TargetResource
@@ -126,7 +121,7 @@ Function Test-TargetResource
     $inDesiredState = $true
     $schemaTemplate = Get-Content -Path $SchemaPath
     $schemaConfig = (Get-ADRootDSE).SchemaNamingContext
-    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties *
+    $schemaObjects = Get-ADObject -Filter * -SearchBase $schemaConfig -Properties 'adminDisplayName', 'attributeID', 'governsId', 'mayContain'
 
     foreach ($line in $schemaTemplate)
     {
@@ -134,16 +129,14 @@ Function Test-TargetResource
         {
             $attributeId = $line -split ":"
             $attributeId = $attributeId[1].Trim()
-            $attributeObject = $schemaObjects | where {$_.attributeId -eq $attributeId}
+            $attributeObject = $schemaObjects | Where-Object -FilterScript {$_.attributeId -eq $attributeId}
             if ($null -ne $attributeObject)
             {
-                $Message = $LocalizedData.ExtensionObjectFound -f $attributeObject.adminDisplayName
-                Write-Verbose -Message $Message
+                Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $attributeObject.adminDisplayName)
             }
             else
             {
-                $Message = $LocalizedData.ExtensionAttributeIdNotFound -f $attributeId
-                Write-Verbose -Message $Message
+                Write-Verbose -Message ($localizedData.ExtensionAttributeIdNotFound -f $attributeId)
 
                 $inDesiredState = $false
             }
@@ -152,17 +145,15 @@ Function Test-TargetResource
         {
             $governsId = $line -split ":"
             $governsId = $governsId[1].Trim()
-            $governsObject = $schemaObjects | where {$_.governsID -eq $governsID}
+            $governsObject = $schemaObjects | Where-Object -FilterScript {$_.governsID -eq $governsID}
             
             if ($null -ne $governsObject)
             {
-                $Message = $LocalizedData.ExtensionObjectFound -f $governsObject.adminDisplayName
-                Write-Verbose -Message $Message
+                Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $governsObject.adminDisplayName)
             }
             else
             {
-                $Message = $LocalizedData.ExtensionGovernsIdNotFound -f $governsId
-                Write-Verbose -Message $Message
+                Write-Verbose -Message ($localizedData.ExtensionGovernsIdNotFound -f $governsId)
                 
                 $inDesiredState = $false
             }
@@ -174,15 +165,13 @@ Function Test-TargetResource
             
             if ($governsObject.mayContain -match $mayId)
             {
-                $governsName = $governsObject.ldapDisplayName
+                $governsName = $governsObject.Name
 
-                $Message = $LocalizedData.MayContainFound -f $mayId, $governsName
-                Write-Verbose -Message $Message                         
+                Write-Verbose -Message ($localizedData.MayContainFound -f $mayId, $governsName)                         
             }
             else
             {
-                $Message = $LocalizedData.MayContainNotFound -f $mayId
-                Write-Verbose -Message $Message
+                Write-Verbose -Message ($localizedData.MayContainNotFound -f $mayId)
 
                 $inDesiredState = $false
             }
@@ -207,27 +196,30 @@ Function Set-TargetResource
 
     if (Test-path $SchemaPath)
     {
-        $Message = $LocalizedData.FileEncoding
-        Write-Verbose -Message $Message
+        Write-Verbose -Message $localizedData.FileEncoding
 
         $encoding = Get-FileEncoding -FilePath $SchemaPath
 
         if ($encoding -ne 'ASCII')
         {
-            $Message = $LocalizedData.AsciiConversion
-            Write-Verbose -Message $Message
+            Write-Verbose -Message ($localizedData.AsciiConversion)
 
             ConvertTo-ASCII -FilePath $SchemaPath
         }
 
-        $Message = $LocalizedData.ldifde
-        Write-Verbose -Message $Message
+        Write-Verbose -Message $localizedData.ldifde
 
-        ldifde -i -f $SchemaPath -s $env:COMPUTERNAME -c "{_UNIT_DN_}" "$($DistinguishedName)" -v -k 
+        start-process -FilePath ldifde.exe -ArgumentList "-i -f $SchemaPath -s $env:COMPUTERNAME -c `"{_UNIT_DN_}`" $DistinguishedName -v -k " -Wait -NoNewWindow
+
+        $ldifdeError = Get-Content -Path $env:TEMP\ldif.err -ErrorAction SilentlyContinue
+
+        if ($null -ne $ldifdeError)
+        {
+            Write-Verbose -Message ($localizedData.ldifdeErrorLog -f $ldifdeError)
+        }
     }
     else 
     {
-        $Message = $LocalizedData.ErrorPathNotFound -f $SchemaPath
-        Write-Verbose -Message $Message
+        Write-Verbose -Message $localizedData.ErrorPathNotFound -f $SchemaPath
     }
 }
