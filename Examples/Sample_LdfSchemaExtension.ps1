@@ -26,7 +26,7 @@ Configuration Sample_LdfSchemaExtension
 {
     Import-DscResource SchemaExtensionDsc
     
-    Node TargetName
+    Node $TargetName
     {
         LdfSchemaExtension TestExtension
         {
