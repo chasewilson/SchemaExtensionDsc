@@ -14,5 +14,6 @@ class LdfSchemaExtension : OMI_BaseResource
 {
     [Key, Description("Indicates the path of the schema extension file.")] string SchemaPath;
     [Required, Description("Domain Distinguished Name of the schema to be extended.")] string DistinguishedName;
+    [Write, Description("The placeholder that is used in the LDF schema file.")] string LdfPlaceholder;
     [Read, Description("The existing schema extension objects."), EmbeddedInstance("SchemaObject")] string SchemaObject[];
 };
