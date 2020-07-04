@@ -30,8 +30,16 @@ Configuration Sample_LdfSchemaExtension
     {
         LdfSchemaExtension TestExtension
         {
-            SchemaPath = $SchemaPath
-            DistinguishedName = $DistinguishedName
+            SchemaPath           = $SchemaPath
+            DistinguishedName    = $DistinguishedName
+            PsDscRunAsCredential = $SchemaCredential
+        }
+
+        LdfSchemaExtension TestExtensionWithCustomPlaceholder
+        {
+            SchemaPath           = $SchemaPath
+            DistinguishedName    = $DistinguishedName
+            LdfPlaceholder       = "DC=X"
             PsDscRunAsCredential = $SchemaCredential
         }
     }
@@ -40,7 +48,7 @@ Configuration Sample_LdfSchemaExtension
 $ConfigData = @{
     AllNodes = @(
         @{
-            NodeName = '*'
+            NodeName             = '*'
             PSDscAllowDomainUser = $true
         }
     )
