@@ -24,18 +24,18 @@ param
 
 Configuration Sample_LdfSchemaExtension
 {
-    Import-DscResource SchemaExtensionDsc
+    Import-DscResource -ModuleName SchemaExtensionDsc
     
     Node TargetName
     {
-        LdfSchemaExtension TestExtension
+        LdfExtension TestExtension
         {
             SchemaPath           = $SchemaPath
             DistinguishedName    = $DistinguishedName
             PsDscRunAsCredential = $SchemaCredential
         }
 
-        LdfSchemaExtension TestExtensionWithCustomPlaceholder
+        LdfExtension TestExtensionWithCustomPlaceholder
         {
             SchemaPath           = $SchemaPath
             DistinguishedName    = $DistinguishedName
