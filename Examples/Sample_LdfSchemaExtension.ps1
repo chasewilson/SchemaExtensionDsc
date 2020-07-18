@@ -25,7 +25,7 @@ param
 Configuration Sample_LdfSchemaExtension
 {
     Import-DscResource -ModuleName SchemaExtensionDsc
-    
+
     Node TargetName
     {
         LdfExtension TestExtension
