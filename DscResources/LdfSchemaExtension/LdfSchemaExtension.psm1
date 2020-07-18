@@ -1,6 +1,6 @@
 Import-Module -Name (Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
-                               -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
-                               -Force
+        -ChildPath 'SchemaExtensionResourceHelper\LdfSchemaExtensionHelper.psm1') `
+    -Force
 
 # Localized messages for Write-Verbose statements in this resource
 $script:localizedData = Get-LocalizedData -ResourceName 'LdfSchemaExtension'
@@ -17,7 +17,10 @@ Function Get-TargetResource
 
         [parameter(Mandatory = $true)]
         [string]
-        $DistinguishedName
+        $DistinguishedName,
+        [parameter(Mandatory = $false)]
+        [string]
+        $LdfPlaceholder = "{_UNIT_DN_}"
     )
 
     if (Test-Path $SchemaPath)
@@ -37,7 +40,7 @@ Function Get-TargetResource
             {
                 $attributeId = $line -split ":"
                 $attributeId = $attributeId[1].Trim()
-                $currentSchemaObject = $schemaObjects | Where-Object {$_.attributeId -eq $attributeId}
+                $currentSchemaObject = $schemaObjects | Where-Object { $_.attributeId -eq $attributeId }
 
                 if ($null -ne $currentSchemaObject)
                 {
@@ -45,7 +48,7 @@ Function Get-TargetResource
 
                     $currentId = $currentSchemaObject.attributeId
                 }
-                else 
+                else
                 {
                     Write-Verbose -Message ($localizedData.ExtensionAttributeIdNotFound -f $attributeId)
                 }
@@ -54,28 +57,28 @@ Function Get-TargetResource
             {
                 $governsId = $line -split ":"
                 $governsId = $governsId[1].Trim()
-                $currentSchemaObject = $schemaObjects | Where-Object {$_.governsID -eq $governsId}
+                $currentSchemaObject = $schemaObjects | Where-Object { $_.governsID -eq $governsId }
 
-                if($null -ne $currentSchemaObject)
+                if ($null -ne $currentSchemaObject)
                 {
                     Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $currentSchemaObject.adminDisplayName)
 
                     $currentId = $currentSchemaObject.governsId
                 }
-                else 
+                else
                 {
                     Write-Verbose -Message ($localizedData.ExtensionGovernsIdNotFound -f $governsId)
                 }
             }
-            if($null -ne $currentSchemaObject)
+            if ($null -ne $currentSchemaObject)
             {
                 $cimSchemaObjects += New-CimInstance -ClientOnly -Namespace $namespace -ClassName SchemaObject -Property @{
-                    AdminDisplayName = $currentSchemaObject.adminDisplayname
-                    AttributeId = $currentId
+                    AdminDisplayName  = $currentSchemaObject.adminDisplayname
+                    AttributeId       = $currentId
                     DistinguishedName = $currentSchemaObject.distinguishedName
-                    Name = $currentSchemaObject.name
-                    ObjectGuid = $currentSchemaObject.objectGuid.guid
-                    ObjectClass = $currentSchemaObject.objectClass
+                    Name              = $currentSchemaObject.name
+                    ObjectGuid        = $currentSchemaObject.objectGuid.guid
+                    ObjectClass       = $currentSchemaObject.objectClass
                 }
             }
         }
@@ -87,7 +90,7 @@ Function Get-TargetResource
 
     $currentDomain = (Get-ADDomain).DistinguishedName
 
-    if($DistinguishedName -ne $currentDomain)
+    if ($DistinguishedName -ne $currentDomain)
     {
         Write-Verbose -Message ($localizedData.DistinguishedName -f $DistinguishedName, $currentDomain)
     }
@@ -95,9 +98,9 @@ Function Get-TargetResource
     $schemaObject = [Microsoft.Management.Infrastructure.CimInstance[]]@($cimSchemaObjects)
 
     $returnValue = @{
-        SchemaPath = $SchemaPath
+        SchemaPath        = $SchemaPath
         DistinguishedName = $DistinguishedName
-        SchemaObject =  $schemaObject
+        SchemaObject      = $schemaObject
     }
 
     return $returnValue
@@ -115,7 +118,10 @@ Function Test-TargetResource
 
         [parameter(Mandatory = $true)]
         [string]
-        $DistinguishedName
+        $DistinguishedName,
+        [parameter(Mandatory = $false)]
+        [string]
+        $LdfPlaceholder = "{_UNIT_DN_}"
     )
 
     $inDesiredState = $true
@@ -129,7 +135,7 @@ Function Test-TargetResource
         {
             $attributeId = $line -split ":"
             $attributeId = $attributeId[1].Trim()
-            $attributeObject = $schemaObjects | Where-Object -FilterScript {$_.attributeId -eq $attributeId}
+            $attributeObject = $schemaObjects | Where-Object -FilterScript { $_.attributeId -eq $attributeId }
             if ($null -ne $attributeObject)
             {
                 Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $attributeObject.adminDisplayName)
@@ -145,8 +151,8 @@ Function Test-TargetResource
         {
             $governsId = $line -split ":"
             $governsId = $governsId[1].Trim()
-            $governsObject = $schemaObjects | Where-Object -FilterScript {$_.governsID -eq $governsID}
-            
+            $governsObject = $schemaObjects | Where-Object -FilterScript { $_.governsID -eq $governsID }
+
             if ($null -ne $governsObject)
             {
                 Write-Verbose -Message ($localizedData.ExtensionObjectFound -f $governsObject.adminDisplayName)
@@ -154,7 +160,7 @@ Function Test-TargetResource
             else
             {
                 Write-Verbose -Message ($localizedData.ExtensionGovernsIdNotFound -f $governsId)
-                
+
                 $inDesiredState = $false
             }
         }
@@ -162,12 +168,12 @@ Function Test-TargetResource
         {
             $mayId = $line -split ":"
             $mayId = $mayId[1].Trim()
-            
+
             if ($governsObject.mayContain -match $mayId)
             {
                 $governsName = $governsObject.Name
 
-                Write-Verbose -Message ($localizedData.MayContainFound -f $mayId, $governsName)                         
+                Write-Verbose -Message ($localizedData.MayContainFound -f $mayId, $governsName)
             }
             else
             {
@@ -188,10 +194,12 @@ Function Set-TargetResource
         [parameter(Mandatory = $true)]
         [string]
         $SchemaPath,
-
         [parameter(Mandatory = $true)]
         [string]
-        $DistinguishedName
+        $DistinguishedName,
+        [parameter(Mandatory = $false)]
+        [string]
+        $LdfPlaceholder = "{_UNIT_DN_}"
     )
 
     if (Test-path $SchemaPath)
@@ -209,7 +217,7 @@ Function Set-TargetResource
 
         Write-Verbose -Message $localizedData.ldifde
 
-        start-process -FilePath ldifde.exe -ArgumentList "-i -f $SchemaPath -s $env:COMPUTERNAME -c `"{_UNIT_DN_}`" $DistinguishedName -v -k " -Wait -NoNewWindow
+        start-process -FilePath ldifde.exe -ArgumentList "-i -f $SchemaPath -s $env:COMPUTERNAME -c `"$LdfPlaceholder`" $DistinguishedName -v -k " -Wait -NoNewWindow
 
         $ldifdeError = Get-Content -Path $env:TEMP\ldif.err -ErrorAction SilentlyContinue
 
@@ -218,7 +226,7 @@ Function Set-TargetResource
             Write-Verbose -Message ($localizedData.ldifdeErrorLog -f $ldifdeError)
         }
     }
-    else 
+    else
     {
         Write-Verbose -Message $localizedData.ErrorPathNotFound -f $SchemaPath
     }

@@ -1,6 +1,6 @@
-<# 
-    This PS module contains functions for Desired State Configuration (DSC) SchemaExtensionDsc provider. 
-    It enables querying, creation and update of Windows ActiveDirectory Schema objects through 
+<#
+    This PS module contains functions for Desired State Configuration (DSC) SchemaExtensionDsc provider.
+    It enables querying, creation and update of Windows ActiveDirectory Schema objects through
     Get, Set, and Test operations on DSC managed nodes.
 #>
 
@@ -28,17 +28,17 @@ function Get-LocalizedData
         $HelperName
     )
 
-    # With the helper module just update the name and path variables as if it were a resource. 
+    # With the helper module just update the name and path variables as if it were a resource.
     if ($PSCmdlet.ParameterSetName -eq 'helper')
     {
         $resourceDirectory = $PSScriptRoot
         $ResourceName = $HelperName
     }
-    else 
+    else
     {
         # Step up one additional level to build the correct path to the resource culture.
         $resourceDirectory = Join-Path -Path ( Split-Path $PSScriptRoot -Parent ) `
-                                       -ChildPath $ResourceName
+            -ChildPath $ResourceName
     }
 
     $localizedStringFileLocation = Join-Path -Path $resourceDirectory -ChildPath $PSUICulture
@@ -73,7 +73,7 @@ function Get-LocalizedData
 function Get-FileEncoding
 {
     [CmdletBinding()] 
-    Param 
+    Param
     (
         [Parameter(Mandatory = $True)] 
         [string]
@@ -81,7 +81,7 @@ function Get-FileEncoding
     )
  
     [byte[]]$byte = get-content -Encoding byte -ReadCount 4 -TotalCount 4 -Path $FilePath
-    
+
     if ( $byte[0] -eq 0xef -and $byte[1] -eq 0xbb -and $byte[2] -eq 0xbf )
     { 
         Write-Output 'UTF8' 
@@ -130,7 +130,7 @@ function Get-FileEncoding
     { 
         Write-Output 'ASCII' 
     }
-} 
+}
 
 <#
 .SYNOPSIS
@@ -157,4 +157,4 @@ function ConvertTo-ASCII
     $fileContent = Get-Content -Path $FilePath -Encoding 'Unicode' -Raw
 
     [System.IO.File]::WriteAllText($FilePath, $fileContent, [System.Text.Encoding]::ASCII)
-} 
+}
